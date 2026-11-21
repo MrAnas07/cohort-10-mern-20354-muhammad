@@ -37,7 +37,9 @@ copy frontend\.env.example frontend\.env      # Windows
 # macOS/Linux: cp backend/.env.example backend/.env
 #              cp frontend/.env.example frontend/.env
 
-# 3. Start PostgreSQL (creates the notes_dev and notes_test databases)
+# 3. Start PostgreSQL from the repository root (creates the notes_dev and
+#    notes_test databases) — docker-compose.yml lives at the repo root, so
+#    this command fails from any other directory
 docker compose up -d
 
 # 4. Install dependencies (POSIX paths — works on macOS/Linux and in
@@ -46,11 +48,13 @@ cd backend && npm install
 cd ../frontend && npm install
 cd .. # back to the repository root
 
-# 5. Create the schema and run the backend (from the repository root)
+# 5. Create the schema and run the backend. The migration scripts live in
+#    backend/package.json: start PostgreSQL from the repository root (step 3),
+#    then run these from the backend/ folder (from the root: cd backend)
 cd backend
-npm run migrate # apply all Knex migrations (npm run migrate:status to inspect)
-npm run seed # optional: development sample data
-node src/server.js # API server on http://localhost:4000 (blocks; Ctrl+C stops it)
+npm run migrate         # apply all Knex migrations (npm run migrate:status to inspect)
+npm run seed            # optional: development sample data
+node src/server.js      # API server on http://localhost:4000 (blocks; Ctrl+C stops it)
 
 # In a second terminal, from the repository root:
 cd backend && npm test # backend test suite
@@ -105,14 +109,23 @@ PostgreSQL 16 runs locally through Docker (step 3 above). The schema lives in
 `backend/db/migrations/` (Knex) and is reproducible from zero. Connection
 settings come from `backend/.env` (`DATABASE_URL`, `TEST_DATABASE_URL`); they
 are validated at startup, so the app fails fast when they are missing or
-malformed. Run these from the `backend/` folder:
+malformed.
+
+Start the database from the repository root, then run the migration commands
+from the `backend/` folder — `docker-compose.yml` and `backend/package.json`
+live in different directories, so both paths matter:
 
 ```bash
-npm run migrate         # apply pending migrations
-npm run migrate:status  # list applied and pending migrations
+# from the repository root
+docker compose up -d
+
+# then from the backend/ folder
+cd backend
+npm run migrate          # apply pending migrations
+npm run migrate:status   # list applied and pending migrations
 npm run migrate:rollback # roll back the last batch
-npm run migrate:test    # migrate TEST_DATABASE_URL (notes_test)
-npm run seed            # optional: development-only sample data
+npm run migrate:test     # migrate TEST_DATABASE_URL (notes_test)
+npm run seed             # optional: development-only sample data
 ```
 
 The `/api/v1/health` endpoint reports database connectivity
@@ -152,4 +165,5 @@ Tooling baseline only (Phase 02):
 - For the same reason the Phase 04 migrations have **not yet been run against
   a live database**: they are covered by unit tests (files, ordering, `up`/
   `down` exports) until Docker or any PostgreSQL 16 is available — then
-  `docker compose up -d && npm run migrate` verifies them end to end.
+  `docker compose up -d` from the repository root followed by
+  `cd backend && npm run migrate` verifies them end to end.
