@@ -3,6 +3,7 @@
 const { expect } = require('chai');
 const { execFile } = require('node:child_process');
 const path = require('node:path');
+const sinon = require('sinon');
 
 const { knex, resolveConnectionUrl, pingDatabase } = require('../../../src/config/db');
 const knexfile = require('../../../knexfile');
@@ -92,5 +93,29 @@ describe('unit: database config', () => {
   it('pingDatabase never throws and reports up or down', async () => {
     const state = await pingDatabase();
     expect(state).to.be.oneOf(['up', 'down']);
+  });
+
+  it('pingDatabase answers down within the hard deadline when the query hangs', async () => {
+    const clock = sinon.useFakeTimers();
+    // Simulate a database that accepts the connection but never responds:
+    // the probe promise never settles on its own.
+    const rawStub = sinon.stub(knex, 'raw').returns(new Promise(() => {}));
+    let settled = false;
+    try {
+      const probe = pingDatabase().then((state) => {
+        settled = true;
+        return state;
+      });
+
+      await clock.tickAsync(2999);
+      expect(settled, 'must not answer before the 3s floor').to.equal(false);
+
+      await clock.tickAsync(2001); // 5s total: past any allowed deadline
+      expect(await probe).to.equal('down');
+      expect(settled).to.equal(true);
+    } finally {
+      rawStub.restore();
+      clock.restore();
+    }
   });
 });
