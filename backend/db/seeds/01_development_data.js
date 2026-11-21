@@ -6,6 +6,14 @@
  * Fixed UUIDs keep re-seeding idempotent (children are deleted first).
  */
 exports.seed = async function seed(knex) {
+  // Safety guard: this seed deletes every row first. Only ever allow it
+  // against a development database, no matter how the CLI was invoked.
+  if (process.env.NODE_ENV !== 'development') {
+    throw new Error(
+      `Refusing to seed: NODE_ENV must be "development" (got "${process.env.NODE_ENV || 'unset'}"); no tables were touched.`,
+    );
+  }
+
   await knex('note_tags').del();
   await knex('notes').del();
   await knex('tags').del();
