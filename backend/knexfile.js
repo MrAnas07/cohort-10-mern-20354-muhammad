@@ -22,6 +22,12 @@ function buildConfig(connection) {
 
 module.exports = {
   development: buildConfig(resolveConnectionUrl('development')),
-  test: buildConfig(resolveConnectionUrl('test')),
+  // Built lazily: the knex CLI only reads the environment it was asked to
+  // run, so development/production commands never require TEST_DATABASE_URL.
+  // Selecting `test` without it fails fast with a clear error instead of
+  // silently falling back to DATABASE_URL.
+  get test() {
+    return buildConfig(resolveConnectionUrl('test'));
+  },
   production: buildConfig(resolveConnectionUrl('production')),
 };

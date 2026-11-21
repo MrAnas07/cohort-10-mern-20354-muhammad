@@ -4,10 +4,19 @@ const knexFactory = require('knex');
 const env = require('./env');
 const { logger } = require('./logger');
 
-// Tests run against TEST_DATABASE_URL when it is configured; every other
-// environment (development, production) uses DATABASE_URL.
+// Tests run against TEST_DATABASE_URL; every other environment (development,
+// production) uses DATABASE_URL. The test environment requires its own URL and
+// never falls back to DATABASE_URL, so a test run can never touch the
+// development database by accident.
 function resolveConnectionUrl(envName = env.NODE_ENV) {
-  if (envName === 'test' && env.TEST_DATABASE_URL) return env.TEST_DATABASE_URL;
+  if (envName === 'test') {
+    if (!env.TEST_DATABASE_URL) {
+      throw new Error(
+        'TEST_DATABASE_URL is required when the test environment is selected; refusing to fall back to DATABASE_URL.',
+      );
+    }
+    return env.TEST_DATABASE_URL;
+  }
   return env.DATABASE_URL;
 }
 

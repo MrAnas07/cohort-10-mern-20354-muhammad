@@ -1,10 +1,30 @@
 'use strict';
 
 const { expect } = require('chai');
+const { execFile } = require('node:child_process');
+const path = require('node:path');
 
 const { knex, resolveConnectionUrl, pingDatabase } = require('../../../src/config/db');
 const knexfile = require('../../../knexfile');
 const repositories = require('../../../src/repositories');
+
+const backendRoot = path.resolve(__dirname, '../../..');
+
+// Runs a snippet in a fresh Node process so each scenario gets its own
+// environment: the in-process env was already validated by the mocha setup
+// helper, so a missing TEST_DATABASE_URL can only be simulated in a child.
+function runInFreshEnv(code, envOverrides) {
+  const env = { ...process.env };
+  for (const [key, value] of Object.entries(envOverrides)) {
+    if (value === undefined) delete env[key];
+    else env[key] = value;
+  }
+  return new Promise((resolve) => {
+    execFile(process.execPath, ['-e', code], { cwd: backendRoot, env }, (error, stdout, stderr) => {
+      resolve({ exitCode: error ? Number(error.code) || 1 : 0, stdout, stderr });
+    });
+  });
+}
 
 describe('unit: database config', () => {
   after(async () => {
@@ -39,6 +59,34 @@ describe('unit: database config', () => {
     }
     expect(knexfile.development.connection).to.equal(process.env.DATABASE_URL);
     expect(knexfile.test.connection).to.equal(process.env.TEST_DATABASE_URL);
+  });
+
+  it('keeps working for non-test environments without TEST_DATABASE_URL', async () => {
+    const { exitCode, stdout } = await runInFreshEnv(
+      "const cfg = require('./knexfile'); if (cfg.development.client !== 'pg') process.exit(2); console.log('DEV_OK');",
+      { NODE_ENV: 'development', TEST_DATABASE_URL: undefined },
+    );
+    expect(exitCode, stdout).to.equal(0);
+    expect(stdout).to.include('DEV_OK');
+  });
+
+  it('fails fast when the test config is selected without TEST_DATABASE_URL', async () => {
+    const { stdout } = await runInFreshEnv(
+      "const cfg = require('./knexfile'); try { void cfg.test; console.log('NO_THROW'); } catch (err) { console.log('THREW: ' + err.message); }",
+      { NODE_ENV: 'development', TEST_DATABASE_URL: undefined },
+    );
+    expect(stdout).to.include('THREW: TEST_DATABASE_URL is required');
+    expect(stdout).to.not.include('NO_THROW');
+  });
+
+  it('fails fast when NODE_ENV is test without TEST_DATABASE_URL', async () => {
+    const { stdout } = await runInFreshEnv(
+      "try { require('./knexfile'); console.log('LOADED'); } catch (err) { console.log('THREW: ' + err.message); }",
+      { NODE_ENV: 'test', TEST_DATABASE_URL: undefined },
+    );
+    expect(stdout).to.include('THREW:');
+    expect(stdout).to.include('TEST_DATABASE_URL');
+    expect(stdout).to.not.include('LOADED');
   });
 
   it('pingDatabase never throws and reports up or down', async () => {
