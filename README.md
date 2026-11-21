@@ -46,8 +46,10 @@ cd backend && npm install
 cd ../frontend && npm install
 cd .. # back to the repository root
 
-# 5. Run the backend (from the repository root)
+# 5. Create the schema and run the backend (from the repository root)
 cd backend
+npm run migrate # apply all Knex migrations (npm run migrate:status to inspect)
+npm run seed # optional: development sample data
 node src/server.js # API server on http://localhost:4000 (blocks; Ctrl+C stops it)
 
 # In a second terminal, from the repository root:
@@ -66,6 +68,11 @@ npm run dev # frontend dev server (Vite)
 | --- | --- |
 | `npm test` | Run Mocha unit/integration tests |
 | `npm run test:coverage` | Run tests with c8 coverage (`lcov` + `text` into `coverage/`) |
+| `npm run migrate` | Apply pending Knex migrations (alias of `migrate:latest`) |
+| `npm run migrate:status` | List applied and pending migrations |
+| `npm run migrate:rollback` | Roll back the last migration batch |
+| `npm run migrate:test` | Apply migrations to `TEST_DATABASE_URL` |
+| `npm run seed` | Load development-only sample data |
 | `npm run lint` | ESLint check |
 | `npm run lint:fix` | ESLint with auto-fix |
 | `npm run format` | Prettier write |
@@ -91,6 +98,26 @@ npm run dev # frontend dev server (Vite)
 | --- | --- |
 | `docker compose up -d` | Start PostgreSQL 16 with `notes_dev` and `notes_test` |
 | `docker compose down` | Stop PostgreSQL (data kept in the `notes_pgdata` volume) |
+
+## Database
+
+PostgreSQL 16 runs locally through Docker (step 3 above). The schema lives in
+`backend/db/migrations/` (Knex) and is reproducible from zero. Connection
+settings come from `backend/.env` (`DATABASE_URL`, `TEST_DATABASE_URL`); they
+are validated at startup, so the app fails fast when they are missing or
+malformed. Run these from the `backend/` folder:
+
+```bash
+npm run migrate         # apply pending migrations
+npm run migrate:status  # list applied and pending migrations
+npm run migrate:rollback # roll back the last batch
+npm run migrate:test    # migrate TEST_DATABASE_URL (notes_test)
+npm run seed            # optional: development-only sample data
+```
+
+The `/api/v1/health` endpoint reports database connectivity
+(`data.database: "up" | "down"`) without failing the endpoint when the
+database is unreachable.
 
 ## Folder overview
 
@@ -122,3 +149,7 @@ Tooling baseline only (Phase 02):
 - Docker verification is pending: `docker-compose.yml` exists but has not
   been run on this machine (Docker is not installed), so the PostgreSQL setup
   is unverified.
+- For the same reason the Phase 04 migrations have **not yet been run against
+  a live database**: they are covered by unit tests (files, ordering, `up`/
+  `down` exports) until Docker or any PostgreSQL 16 is available — then
+  `docker compose up -d && npm run migrate` verifies them end to end.
