@@ -36,4 +36,17 @@ class ConflictError extends AppError {
   }
 }
 
-module.exports = { AppError, ValidationError, AuthenticationError, NotFoundError, ConflictError };
+class RateLimitError extends AppError {
+  constructor(message = 'Too many requests, please try again later') {
+    super(message, { statusCode: 429, code: 'RATE_LIMITED' });
+  }
+}
+
+module.exports = {
+  AppError,
+  ValidationError,
+  AuthenticationError,
+  NotFoundError,
+  ConflictError,
+  RateLimitError,
+};
