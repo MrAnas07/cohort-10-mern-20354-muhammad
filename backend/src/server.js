@@ -3,6 +3,7 @@
 const app = require('./app');
 const env = require('./config/env');
 const { logger } = require('./config/logger');
+const { knex } = require('./config/db');
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -26,7 +27,13 @@ function shutdown(signal) {
   }, SHUTDOWN_TIMEOUT_MS);
   forceExit.unref();
 
-  server.close(() => {
+  server.close(async () => {
+    try {
+      // Release the PostgreSQL pool so the process can exit cleanly.
+      await knex.destroy();
+    } catch (err) {
+      logger.error({ err }, 'app.db_close_failed');
+    }
     clearTimeout(forceExit);
     process.exit(0);
   });
