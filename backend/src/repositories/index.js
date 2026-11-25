@@ -2,8 +2,10 @@
 
 // Data-access foundation: repositories are the only layer that writes SQL
 // (Knex), and this module is where they share the configured instance.
-// Concrete repositories (user, note, tag, refresh token) arrive with their
-// features in Phases 05/06 — no business logic lives here yet.
+// user and refresh-token repositories arrive with Phase 05 (authentication);
+// note and tag repositories arrive with Phase 06.
 const { knex } = require('../config/db');
+const userRepository = require('./user.repository');
+const refreshTokenRepository = require('./refreshToken.repository');
 
-module.exports = { knex };
+module.exports = { knex, userRepository, refreshTokenRepository };
