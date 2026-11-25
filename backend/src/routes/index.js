@@ -4,6 +4,8 @@ const express = require('express');
 
 const healthRoutes = require('./health.routes');
 const authRoutes = require('./auth.routes');
+const notesRoutes = require('./notes.routes');
+const tagsRoutes = require('./tags.routes');
 const csrfGuard = require('../middleware/csrfGuard');
 const { globalLimiter } = require('../middleware/rateLimiters');
 
@@ -16,6 +18,8 @@ router.use(globalLimiter);
 router.use(csrfGuard);
 
 router.use('/auth', authRoutes);
+router.use('/notes', notesRoutes);
+router.use('/tags', tagsRoutes);
 router.use('/', healthRoutes);
 
 module.exports = router;
