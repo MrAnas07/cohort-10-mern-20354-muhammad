@@ -71,9 +71,16 @@ describe('unit: database config', () => {
     expect(stdout).to.include('DEV_OK');
   });
 
+  // These two scenarios need a child process where TEST_DATABASE_URL is truly
+  // absent. Deleting it from the child env is not enough: dotenv (loaded by
+  // src/config/env.js) refills any missing key from backend/.env, so neutralise
+  // dotenv first. The guards under test live in knexfile/env/db and are
+  // untouched — this only keeps the simulation honest.
+  const neutraliseDotenv = "require('dotenv').config = () => ({}); ";
+
   it('fails fast when the test config is selected without TEST_DATABASE_URL', async () => {
     const { stdout } = await runInFreshEnv(
-      "const cfg = require('./knexfile'); try { void cfg.test; console.log('NO_THROW'); } catch (err) { console.log('THREW: ' + err.message); }",
+      `${neutraliseDotenv}const cfg = require('./knexfile'); try { void cfg.test; console.log('NO_THROW'); } catch (err) { console.log('THREW: ' + err.message); }`,
       { NODE_ENV: 'development', TEST_DATABASE_URL: undefined },
     );
     expect(stdout).to.include('THREW: TEST_DATABASE_URL is required');
@@ -82,7 +89,7 @@ describe('unit: database config', () => {
 
   it('fails fast when NODE_ENV is test without TEST_DATABASE_URL', async () => {
     const { stdout } = await runInFreshEnv(
-      "try { require('./knexfile'); console.log('LOADED'); } catch (err) { console.log('THREW: ' + err.message); }",
+      `${neutraliseDotenv}try { require('./knexfile'); console.log('LOADED'); } catch (err) { console.log('THREW: ' + err.message); }`,
       { NODE_ENV: 'test', TEST_DATABASE_URL: undefined },
     );
     expect(stdout).to.include('THREW:');
