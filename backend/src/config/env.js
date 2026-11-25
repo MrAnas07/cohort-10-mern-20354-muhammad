@@ -17,7 +17,10 @@ const envSchema = z.object({
   DATABASE_URL: postgresUrl,
   TEST_DATABASE_URL: postgresUrl.optional(),
   CLIENT_ORIGIN: z.string().min(1).optional(),
-  JWT_ACCESS_SECRET: z.string().min(1).optional(),
+  // HS256 signing secret for access tokens (architecture 6.2). Required and
+  // long: a short secret is brute-forceable, and a missing one must fail fast
+  // instead of silently signing with an empty key.
+  JWT_ACCESS_SECRET: z.string().min(32, 'must be at least 32 characters'),
 });
 
 const parsed = envSchema.safeParse(process.env);
