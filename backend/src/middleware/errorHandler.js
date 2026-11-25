@@ -1,6 +1,7 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
+const { ZodError } = require('zod');
 const { AppError } = require('../errors/AppError');
 const { logger } = require('../config/logger');
 const { REQUEST_ID_HEADER, isValidRequestId } = require('./httpLogger');
@@ -54,6 +55,46 @@ function toErrorResponse(err, requestId) {
       body: {
         success: false,
         error: { code: 'VALIDATION_ERROR', message: 'Malformed JSON in request body', requestId },
+      },
+    };
+  }
+
+  // Zod schema failures (architecture 6.8): one entry per field so the client
+  // can highlight the offending inputs.
+  if (err instanceof ZodError) {
+    return {
+      statusCode: 400,
+      body: {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: err.issues.map((issue) => ({
+            field: issue.path.join('.') || '(root)',
+            message: issue.message,
+          })),
+          requestId,
+        },
+      },
+    };
+  }
+
+  // Postgres unique-constraint violation (e.g. a duplicate email that slipped
+  // past the service-level check in a race). The constraint name itself is
+  // never echoed to the client.
+  if (err.code === '23505') {
+    return {
+      statusCode: 409,
+      body: {
+        success: false,
+        error: {
+          code:
+            err.constraint && err.constraint.includes('email')
+              ? 'EMAIL_ALREADY_REGISTERED'
+              : 'CONFLICT',
+          message: 'Resource already exists',
+          requestId,
+        },
       },
     };
   }
