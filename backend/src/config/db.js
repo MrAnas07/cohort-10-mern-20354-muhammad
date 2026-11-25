@@ -6,10 +6,16 @@ const { logger } = require('./logger');
 
 // Hard deadline for the health ping: the probe must answer within this
 // window even when the database accepts TCP connections but never responds.
-// The same value is configured as pg's client-side `query_timeout`, so a
-// hung query errors out and knex releases its pool connection instead of
-// holding it indefinitely.
+// pingDatabase() enforces it with its own Promise.race, independent of the
+// pg-level deadline below.
 const PING_TIMEOUT_MS = 4000;
+
+// pg-level client deadline for every query: a hung query must error out so
+// knex releases its pool connection instead of holding it indefinitely. The
+// suite runs against a remote test database (Supabase pooler), where healthy
+// queries occasionally take several seconds, so this is deliberately larger
+// than the ping window - /health still degrades at 4s via pingDatabase().
+const QUERY_TIMEOUT_MS = 10000;
 
 // Tests run against TEST_DATABASE_URL; every other environment (development,
 // production) uses DATABASE_URL. The test environment requires its own URL and
@@ -37,7 +43,7 @@ const knex = knexFactory({
     // pg-level bounds: a connect attempt or query can never hang the pool
     // longer than these deadlines allow.
     connectionTimeoutMillis: 5000,
-    query_timeout: PING_TIMEOUT_MS,
+    query_timeout: QUERY_TIMEOUT_MS,
   },
   pool: { min: 0, max: 10 },
   log: {
