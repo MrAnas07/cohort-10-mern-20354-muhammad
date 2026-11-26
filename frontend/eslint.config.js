@@ -36,6 +36,9 @@ export default [
       'react/react-in-jsx-scope': 'off',
       'react/jsx-uses-react': 'off',
       'react/jsx-uses-vars': 'error',
+      // PropTypes are deprecated in React 19; this codebase validates at the
+      // API boundary instead, so per-component propTypes would be noise.
+      'react/prop-types': 'off',
     },
   },
   {
