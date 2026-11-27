@@ -77,7 +77,7 @@ function refreshSession() {
   return refreshInFlight;
 }
 
-async function request(path, { method = 'GET', body, allowRefresh = true } = {}) {
+async function request(path, { method = 'GET', body, allowRefresh = true, full = false } = {}) {
   const isMutating = method !== 'GET' && method !== 'HEAD';
   const headers = { Accept: 'application/json' };
   if (body !== undefined) {
@@ -135,13 +135,19 @@ async function request(path, { method = 'GET', body, allowRefresh = true } = {})
     throw error;
   }
 
+  // The list endpoint answers { data, meta }: callers that need the pagination
+  // block ask for the whole envelope, everyone else keeps the plain data.
+  if (full) {
+    return payload;
+  }
   return payload ? payload.data : null;
 }
 
 const api = {
-  get: (path) => request(path),
+  get: (path, options) => request(path, options),
   post: (path, body) => request(path, { method: 'POST', body }),
   patch: (path, body) => request(path, { method: 'PATCH', body }),
+  del: (path) => request(path, { method: 'DELETE' }),
 };
 
 export default api;
