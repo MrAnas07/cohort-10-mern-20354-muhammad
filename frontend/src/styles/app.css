@@ -219,6 +219,7 @@ a:hover {
 /* --- buttons --- */
 
 .btn {
+  display: inline-block;
   padding: 9px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -227,6 +228,7 @@ a:hover {
   font: inherit;
   font-size: 14px;
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -248,6 +250,19 @@ a:hover {
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+  color: #ffffff;
+}
+
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #8d1f25;
+  border-color: #8d1f25;
+  color: #ffffff;
 }
 
 .btn-quiet {
@@ -268,6 +283,30 @@ a:hover {
 }
 
 /* --- pages --- */
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.checkbox-inline input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
 
 .page-title {
   margin: 0 0 4px;
@@ -308,6 +347,178 @@ a:hover {
   text-align: center;
 }
 
+/* --- notes list --- */
+
+.note-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.control-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.note-controls .field {
+  flex: 0 1 auto;
+}
+
+.note-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.note-item:hover {
+  border-color: #c4c4bd;
+}
+
+.note-item-link {
+  display: block;
+  padding: 14px 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.note-item-link:focus-visible {
+  outline-offset: -2px;
+}
+
+.note-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.note-item-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pin-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid #cbe3d5;
+  border-radius: 999px;
+  background: var(--success-bg);
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.note-item-excerpt {
+  display: -webkit-box;
+  margin-top: 6px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 14px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.note-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.note-tags {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag-chip {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f0f0ed;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.note-date {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.page-status {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* --- note editor --- */
+
+.note-editor {
+  max-width: 720px;
+}
+
+.editor-textarea {
+  min-height: 220px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.confirm-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #efc7c9;
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+}
+
+.confirm-title {
+  margin: 0;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.confirm-copy {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
 @media (max-width: 560px) {
   .app-header {
     padding: 12px 16px;
@@ -324,5 +535,19 @@ a:hover {
 
   .session-user {
     display: none;
+  }
+
+  .note-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .note-item-head {
+    align-items: flex-start;
+  }
+
+  .page-head .btn {
+    width: 100%;
+    text-align: center;
   }
 }
