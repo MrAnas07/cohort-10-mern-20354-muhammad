@@ -2,8 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import App from './App.jsx';
 
 // Shell + router smoke tests: a visitor is bounced to the login form, a
-// signed-in user lands on the notes placeholder with their name in the
-// header. fetch is stubbed per scenario - no server involved.
+// signed-in user lands on the notes list with their name in the header.
+// fetch is stubbed per scenario - no server involved.
 
 function jsonResponse(status, body) {
   return {
@@ -65,7 +65,7 @@ describe('app shell and routing', () => {
     expect(await screen.findByRole('heading', { name: 'Your notes' })).toBeInTheDocument();
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
-    expect(screen.getByText(/Signed in as ada@example.com/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'New note' })).toBeInTheDocument();
   });
 
   it('keeps a signed-in user away from the login page', async () => {
