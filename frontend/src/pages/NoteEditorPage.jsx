@@ -1,54 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import RichTextEditor from '../components/RichTextEditor';
 import api, { ApiError, fieldErrorsFrom } from '../lib/api';
+import { EMPTY_DOC } from '../lib/editorDoc';
 
 // Note editor serving both /notes/new (create) and /notes/:id (read, edit,
-// delete, pin). Content is stored as TipTap-style JSON (architecture 5.3
-// #7); this slice edits plain text and converts to the minimal doc shape on
-// save - the rich editor itself is the documented follow-up.
-
-const BLOCK_TYPES = new Set([
-  'paragraph',
-  'heading',
-  'bulletList',
-  'orderedList',
-  'listItem',
-  'blockquote',
-  'codeBlock',
-]);
-
-// Doc JSON -> editable text, mirroring the backend's extractPlainText so a
-// note round-trips: blocks become lines, repeated blank lines collapse.
-function docToText(doc) {
-  const chunks = [];
-  const visit = (node, depth) => {
-    if (!node || typeof node !== 'object' || depth > 100) return;
-    if (node.type === 'text' && typeof node.text === 'string') {
-      chunks.push(node.text);
-      return;
-    }
-    const children = Array.isArray(node.content) ? node.content : [];
-    for (const child of children) visit(child, depth + 1);
-    if (BLOCK_TYPES.has(node.type)) chunks.push('\n');
-  };
-  visit(doc, 0);
-  return chunks
-    .join('')
-    .replace(/\n{2,}/g, '\n')
-    .trim();
-}
-
-// Plain text -> the minimal document the API accepts: one paragraph per
-// line, empty lines as empty paragraphs.
-function textToDoc(text) {
-  const lines = String(text).split(/\r?\n/);
-  return {
-    type: 'doc',
-    content: lines.map((line) =>
-      line ? { type: 'paragraph', content: [{ type: 'text', text: line }] } : { type: 'paragraph' },
-    ),
-  };
-}
+// delete, pin). Content is TipTap doc JSON end to end (architecture 5.3 #7):
+// the rich editor loads note.content as-is and getJSON() goes back on save,
+// with the Phase 08 rule kept - untouched content is not PATCHed.
 
 // "work, home" -> ["work", "home"], trimmed, blanks dropped, case-insensitive
 // dedupe with the first spelling kept (the backend dedupes the same way).
@@ -90,8 +49,7 @@ export default function NoteEditorPage() {
   const [reload, setReload] = useState(0);
 
   const [title, setTitle] = useState('');
-  const [contentText, setContentText] = useState('');
-  const [initialText, setInitialText] = useState('');
+  const [initialContent, setInitialContent] = useState('');
   const [tagsRaw, setTagsRaw] = useState('');
   const [isPinned, setIsPinned] = useState(false);
   const [updatedAt, setUpdatedAt] = useState('');
@@ -103,6 +61,9 @@ export default function NoteEditorPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const cancelDeleteRef = useRef(null);
+  // Filled by RichTextEditor's onCreate with { getJSON, isDirty, markClean };
+  // a ref keeps the save path free of editor-state re-renders.
+  const contentControl = useRef(null);
 
   // Move focus onto the safe choice when the confirm panel opens, so keyboard
   // users land inside the dialog instead of hunting for it (jsx-a11y keeps
@@ -124,10 +85,8 @@ export default function NoteEditorPage() {
       .then((payload) => {
         if (!active) return;
         const note = payload.note;
-        const text = docToText(note.content);
         setTitle(note.title || '');
-        setContentText(text);
-        setInitialText(text);
+        setInitialContent(note.content || '');
         setTagsRaw((note.tags || []).join(', '));
         setIsPinned(Boolean(note.isPinned));
         setUpdatedAt(note.updatedAt || '');
@@ -177,18 +136,23 @@ export default function NoteEditorPage() {
 
     setSaving(true);
     try {
+      const control = contentControl.current;
       if (isCreate) {
-        const body = { title: trimmedTitle, content: textToDoc(contentText), isPinned };
+        const body = {
+          title: trimmedTitle,
+          content: control ? control.getJSON() : EMPTY_DOC,
+          isPinned,
+        };
         if (tags.length > 0) body.tags = tags;
         const created = await api.post('/notes', body);
         navigate(`/notes/${created.note.id}`, { replace: true });
       } else {
         const body = { title: trimmedTitle, tags, isPinned };
         // Content travels only when it changed, so a title-only save keeps
-        // the original rich document untouched.
-        if (contentText !== initialText) body.content = textToDoc(contentText);
+        // the original rich document untouched (Phase 08 behaviour kept).
+        if (control && control.isDirty()) body.content = control.getJSON();
         const updated = await api.patch(`/notes/${id}`, body);
-        setInitialText(contentText);
+        if (control) control.markClean();
         setUpdatedAt(updated.note.updatedAt || '');
         setSavedNote(true);
       }
@@ -319,18 +283,15 @@ export default function NoteEditorPage() {
         </div>
 
         <div className="field">
-          <label className="label" htmlFor="note-content">
+          <label className="label" htmlFor="note-content" id="note-content-label">
             Content
           </label>
-          <textarea
-            className="input editor-textarea"
-            id="note-content"
-            name="content"
-            rows={10}
-            value={contentText}
-            onChange={(event) => setContentText(event.target.value)}
-            aria-invalid={fieldErrors.content ? 'true' : undefined}
-            aria-describedby={fieldErrors.content ? 'note-content-error' : 'note-content-hint'}
+          <RichTextEditor
+            initialContent={initialContent}
+            labelId="note-content-label"
+            control={contentControl}
+            invalid={Boolean(fieldErrors.content)}
+            describedBy={fieldErrors.content ? 'note-content-error' : 'note-content-hint'}
           />
           {fieldErrors.content ? (
             <p className="field-error" id="note-content-error">
@@ -338,7 +299,7 @@ export default function NoteEditorPage() {
             </p>
           ) : (
             <p className="hint" id="note-content-hint">
-              Plain text for now; rich formatting arrives with the editor update.
+              Format with the toolbar - bold, headings, lists and http/https/mailto links.
             </p>
           )}
         </div>

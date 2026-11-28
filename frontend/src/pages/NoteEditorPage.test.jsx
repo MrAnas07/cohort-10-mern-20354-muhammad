@@ -8,6 +8,74 @@ import NoteEditorPage from './NoteEditorPage.jsx';
 // content + tags, an edit loads GET /notes/:id and PATCHes changed fields,
 // and a missing/foreign id lands on the friendly 404 state.
 
+// TipTap itself is replaced by a textarea stand-in that speaks the same
+// { getJSON, isDirty, markClean } contract, so these tests exercise the page
+// without booting ProseMirror. The real serialization helpers live in
+// src/lib/editorDoc.test.js.
+jest.mock('../components/RichTextEditor', () => {
+  const React = jest.requireActual('react');
+
+  function docToText(doc) {
+    if (!doc || typeof doc !== 'object') return '';
+    const chunks = [];
+    const visit = (node) => {
+      if (!node || typeof node !== 'object') return;
+      if (node.type === 'text' && typeof node.text === 'string') {
+        chunks.push(node.text);
+        return;
+      }
+      for (const child of node.content || []) visit(child);
+      if (node.type === 'paragraph' || node.type === 'heading') chunks.push('\n');
+    };
+    visit(doc);
+    return chunks
+      .join('')
+      .replace(/\n{2,}/g, '\n')
+      .trim();
+  }
+
+  function textToDoc(text) {
+    return {
+      type: 'doc',
+      content: String(text)
+        .split(/\r?\n/)
+        .map((line) =>
+          line
+            ? { type: 'paragraph', content: [{ type: 'text', text: line }] }
+            : { type: 'paragraph' },
+        ),
+    };
+  }
+
+  function MockRichTextEditor({ initialContent, control }) {
+    const [text, setText] = React.useState(() => docToText(initialContent));
+    const textRef = React.useRef(text);
+    textRef.current = text;
+    const initialJsonRef = React.useRef(null);
+
+    React.useEffect(() => {
+      const currentJson = () => JSON.stringify(textToDoc(textRef.current));
+      if (initialJsonRef.current === null) initialJsonRef.current = currentJson();
+      control.current = {
+        getJSON: () => textToDoc(textRef.current),
+        isDirty: () => JSON.stringify(textToDoc(textRef.current)) !== initialJsonRef.current,
+        markClean: () => {
+          initialJsonRef.current = currentJson();
+        },
+      };
+    }, [control]);
+
+    return React.createElement('textarea', {
+      id: 'note-content',
+      className: 'input',
+      value: text,
+      onChange: (event) => setText(event.target.value),
+    });
+  }
+
+  return { __esModule: true, default: MockRichTextEditor };
+});
+
 function jsonResponse(status, body) {
   return {
     ok: status >= 200 && status < 300,
@@ -177,6 +245,35 @@ describe('note editor - detail and edit', () => {
       expect(body).not.toHaveProperty('content');
     });
 
+    expect(await screen.findByText('Changes saved.')).toBeInTheDocument();
+  });
+
+  it('includes content in PATCH only when the editor changed', async () => {
+    globalThis.fetch = makeFetch([
+      [
+        '/notes/n1',
+        Promise.resolve(jsonResponse(200, { success: true, data: { note: storedNote } })),
+      ],
+    ]);
+
+    renderDetail();
+    const content = await screen.findByLabelText('Content');
+    await waitFor(() => expect(content).toHaveValue('Weekly shop\nPantry restock'));
+
+    await userEvent.clear(content);
+    await userEvent.type(content, 'Weekly shop and more');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => {
+      const call = globalThis.fetch.mock.calls.find(([, init]) => init && init.method === 'PATCH');
+      expect(call).toBeTruthy();
+      const body = JSON.parse(call[1].body);
+      expect(body.title).toBe('Grocery list');
+      expect(body.content).toEqual({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Weekly shop and more' }] }],
+      });
+    });
     expect(await screen.findByText('Changes saved.')).toBeInTheDocument();
   });
 
