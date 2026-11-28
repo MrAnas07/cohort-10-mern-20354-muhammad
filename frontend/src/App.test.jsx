@@ -64,6 +64,7 @@ describe('app shell and routing', () => {
 
     expect(await screen.findByRole('heading', { name: 'Your notes' })).toBeInTheDocument();
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New note' })).toBeInTheDocument();
   });

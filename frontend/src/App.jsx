@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import NoteEditorPage from './pages/NoteEditorPage';
 import NotesPage from './pages/NotesPage';
+import ProfilePage from './pages/ProfilePage';
 import RegisterPage from './pages/RegisterPage';
 import './styles/app.css';
 
@@ -19,6 +20,7 @@ export function AppRoutes() {
           <Route path="/notes" element={<NotesPage />} />
           <Route path="/notes/new" element={<NoteEditorPage />} />
           <Route path="/notes/:id" element={<NoteEditorPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />

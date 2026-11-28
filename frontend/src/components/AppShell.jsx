@@ -24,6 +24,9 @@ export default function AppShell() {
         {user && (
           <div className="session">
             <span className="session-user">{user.fullName}</span>
+            <Link className="nav-link" to="/profile">
+              Profile
+            </Link>
             <button className="btn btn-quiet" type="button" onClick={handleSignOut}>
               Sign out
             </button>
